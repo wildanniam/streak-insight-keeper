@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Calendar, Plus, Target, Trophy, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,97 +9,15 @@ import AddHabitDialog from '@/components/AddHabitDialog';
 import MonthlyView from '@/components/MonthlyView';
 import ProgressInsights from '@/components/ProgressInsights';
 import AchievementBadges from '@/components/AchievementBadges';
-import { Habit, HabitCompletion } from '@/types/habit';
+import UserMenu from '@/components/UserMenu';
+import { useHabits } from '@/hooks/useHabits';
+import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
-  const [habits, setHabits] = useState<Habit[]>([]);
-  const [completions, setCompletions] = useState<HabitCompletion[]>([]);
+  const { user } = useAuth();
+  const { habits, completions, addHabit, toggleHabitCompletion, getStreak } = useHabits();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
-
-  // Load data from localStorage on component mount
-  useEffect(() => {
-    const savedHabits = localStorage.getItem('habits');
-    const savedCompletions = localStorage.getItem('completions');
-    
-    if (savedHabits) {
-      setHabits(JSON.parse(savedHabits));
-    }
-    if (savedCompletions) {
-      setCompletions(JSON.parse(savedCompletions));
-    }
-  }, []);
-
-  // Save to localStorage whenever data changes
-  useEffect(() => {
-    localStorage.setItem('habits', JSON.stringify(habits));
-  }, [habits]);
-
-  useEffect(() => {
-    localStorage.setItem('completions', JSON.stringify(completions));
-  }, [completions]);
-
-  const addHabit = (habit: Omit<Habit, 'id' | 'createdAt'>) => {
-    const newHabit: Habit = {
-      ...habit,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-    };
-    setHabits([...habits, newHabit]);
-  };
-
-  const toggleHabitCompletion = (habitId: string, date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
-    const existingCompletion = completions.find(
-      c => c.habitId === habitId && c.date === dateString
-    );
-
-    if (existingCompletion) {
-      setCompletions(completions.filter(c => c !== existingCompletion));
-    } else {
-      const newCompletion: HabitCompletion = {
-        habitId,
-        date: dateString,
-        completedAt: new Date().toISOString(),
-      };
-      setCompletions([...completions, newCompletion]);
-    }
-  };
-
-  const getStreak = (habitId: string): number => {
-    const habitCompletions = completions
-      .filter(c => c.habitId === habitId)
-      .map(c => new Date(c.date))
-      .sort((a, b) => b.getTime() - a.getTime());
-
-    if (habitCompletions.length === 0) return 0;
-
-    let streak = 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Check if completed today or yesterday to start streak
-    const latestCompletion = habitCompletions[0];
-    latestCompletion.setHours(0, 0, 0, 0);
-    
-    const daysDiff = (today.getTime() - latestCompletion.getTime()) / (1000 * 60 * 60 * 24);
-    
-    if (daysDiff > 1) return 0; // Streak broken
-
-    let currentDate = new Date(latestCompletion);
-    
-    for (const completion of habitCompletions) {
-      completion.setHours(0, 0, 0, 0);
-      if (completion.getTime() === currentDate.getTime()) {
-        streak++;
-        currentDate.setDate(currentDate.getDate() - 1);
-      } else {
-        break;
-      }
-    }
-
-    return streak;
-  };
 
   const getTodayCompletions = () => {
     const today = new Date().toISOString().split('T')[0];
@@ -117,14 +35,20 @@ const Index = () => {
           <div>
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Habit Tracker</h1>
             <p className="text-gray-600">Build better habits, one day at a time</p>
+            {user && (
+              <p className="text-sm text-gray-500 mt-1">Welcome back, {user.email}</p>
+            )}
           </div>
-          <Button 
-            onClick={() => setIsAddDialogOpen(true)}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Habit
-          </Button>
+          <div className="flex items-center gap-4">
+            <Button 
+              onClick={() => setIsAddDialogOpen(true)}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Habit
+            </Button>
+            <UserMenu />
+          </div>
         </div>
 
         {/* Quick Stats */}
